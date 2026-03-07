@@ -19,14 +19,17 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .header-title { font-size: 20px; font-weight: 800; background: linear-gradient(to right, #34d399, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 8px;}
         .status-dot { width: 10px; height: 10px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981; }
-        .change-token { font-size: 11px; color: #cbd5e1; background: #334155; padding: 5px 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: 600; border: none;}
+        
+        /* Skupina tlačítek nahoře vpravo */
+        .header-actions { display: flex; gap: 8px; align-items: center; }
+        .change-token { font-size: 11px; color: #cbd5e1; background: #334155; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: 600; border: none;}
         .change-token:hover { background: #475569; }
+        .clear-chat-btn { font-size: 14px; color: #cbd5e1; background: #334155; padding: 4px 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: none; display: flex; align-items: center; justify-content: center; }
+        .clear-chat-btn:hover { background: #ef4444; color: white; }
 
         .sync-info { background-color: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 10px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        .sync-label { color: #94a3b8; display: flex; align-items: center; gap: 6px;}
+        .sync-label { color: #94a3b8; }
         .sync-time { color: #f59e0b; font-weight: 700; }
-        .clear-chat-btn { background: none; border: none; color: #64748b; cursor: pointer; font-size: 14px; transition: color 0.2s; padding: 0 4px;}
-        .clear-chat-btn:hover { color: #ef4444; }
 
         /* 2. CHATOVACÍ OKNO (Uprostřed) */
         .chat-messages { flex-grow: 1; min-height: 0; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; background-color: #0f172a; scroll-behavior: smooth; box-shadow: inset 0 4px 10px rgba(0,0,0,0.1);}
@@ -112,20 +115,22 @@
                     <div class="status-dot"></div>
                     Garmin AI Trenér
                 </div>
-                <button class="change-token" onclick="openSettingsModal()">⚙️ Klíče</button>
+                <!-- Přesunutý koš hned vedle nastavení -->
+                <div class="header-actions">
+                    <button class="clear-chat-btn" onclick="clearLocalChat()" title="Vymazat chat">🗑️</button>
+                    <button class="change-token" onclick="openSettingsModal()">⚙️ Klíče</button>
+                </div>
             </div>
+            <!-- Zpět čistý sync info -->
             <div class="sync-info">
-                <span class="sync-label">
-                    Garmin Data z:
-                    <button class="clear-chat-btn" onclick="clearLocalChat()" title="Vymazat lokální historii chatu">🗑️</button>
-                </span>
+                <span class="sync-label">Garmin Data z:</span>
                 <span id="syncTime" class="sync-time">Zjišťuji...</span>
             </div>
         </div>
 
         <!-- 2. CHATOVACÍ OKNO -->
         <div id="chatMessages" class="chat-messages">
-            <!-- Výchozí zpráva, pokud je chat prázdný, se načte přes JavaScript -->
+            <!-- Výchozí zpráva se načte přes JavaScript -->
         </div>
 
         <!-- 3. OVLÁDACÍ PRVKY DOLE -->
@@ -198,7 +203,6 @@
         let base64ImagesArray = []; 
         let inMemoryStorage = {};
         
-        // Lokální historie chatu v prohlížeči
         let localChatHistory = [];
 
         function scrollChatToBottom() {
@@ -236,7 +240,6 @@
                 } catch(e) {}
             }
             
-            // Výchozí zpráva, pokud je chat prázdný
             chatMessages.innerHTML = `
                 <div class="bubble bubble-ai">
                     👋 Ahoj Kabi! Jsem tvůj AI Trenér. Dole mi můžeš napsat hlášení, dotaz nebo mi nahrát fotku.
@@ -252,7 +255,6 @@
             
             localChatHistory.push({ role: role, content: htmlContent, style: customStyle });
             
-            // Udržíme v lokální paměti jen posledních 20 zpráv, aby appka zůstala blesková
             if (localChatHistory.length > 20) {
                 localChatHistory.shift();
             }
@@ -262,13 +264,13 @@
         }
 
         function clearLocalChat() {
-            if(confirm("Opravdu chceš vymazat historii tohoto chatu z obrazovky? (Data na GitHubu zůstanou v bezpečí).")) {
+            if(confirm("Opravdu chceš vymazat historii chatu z displeje?")) {
                 localChatHistory = [];
                 setSafeLocal('garmin_local_chat', JSON.stringify([]));
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.innerHTML = `
                     <div class="bubble bubble-ai">
-                        🧹 Chat byl promazán. Můžeme začít s čistým stolem!
+                        🧹 Chat byl promazán. Můžeme začít znovu!
                     </div>
                 `;
             }
@@ -298,7 +300,7 @@
             const syncEl = document.getElementById('syncTime');
             const token = getSafeLocal('garmin_app_token');
             if (!token) {
-                syncEl.innerText = "Nenastaveno (⚙️ Klíče)";
+                syncEl.innerText = "Nenastaveno (⚙️)";
                 syncEl.style.color = "#ef4444"; 
                 return;
             }
@@ -349,7 +351,7 @@
                 img.src = "data:image/jpeg;base64," + b64;
                 const trashIcon = document.createElement('div');
                 trashIcon.className = 'thumbnail-delete-icon';
-                trashIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+                trashIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`;
                 wrapper.appendChild(img); wrapper.appendChild(trashIcon); container.appendChild(wrapper);
             });
             const pill = document.getElementById('photoPill');
@@ -458,12 +460,10 @@
             activeBtn.style.opacity = "1";
             activeBtn.innerHTML = `<svg class="spinner mb-1" style="color:white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="main-text text-sm">${isChat ? "Přemýšlím..." : "Generuji..."}</span>`;
 
-            // Zápis zprávy uživatele do UI (paměti)
             let displayUserText = text;
             if (base64ImagesArray.length > 0) {
                 displayUserText += displayUserText ? "<br><br><i>[Přiloženy fotky]</i>" : "<i>[Přiloženy fotky]</i>";
             }
-            // Pro report napíšeme do chatu info, že spouštíme report
             if(isChat) {
                 appendMessage('user', displayUserText);
             } else {
@@ -496,7 +496,7 @@
                     activeBtn.innerHTML = `<span class="main-text text-sm">Úspěch! ✅</span>`;
                     activeBtn.style.background = "linear-gradient(135deg, #059669, #047857)";
                     
-                    appendMessage('ai', "🚀 Povel k Velkému Reportu byl úspěšně odeslán. Skript na GitHubu začal pracovat, za pár minut máš report v e-mailu!", "border-left: 4px solid #10b981;");
+                    appendMessage('ai', "🚀 Povel k Velkému Reportu byl úspěšně odeslán. Skript začal pracovat, za pár minut máš report v e-mailu!", "border-left: 4px solid #10b981;");
 
                     setTimeout(() => {
                         document.getElementById('zprava').value = ''; base64ImagesArray = []; updateUI();
@@ -530,7 +530,7 @@
             activeBtn.innerHTML = `<span class="main-text text-sm">Odpovídám...</span>`;
             let promptText = `
             Jsi elitní osobní AI trenér. Klient ti píše v živém chatu. Jeho zpráva: "${text}"
-            TVŮJ KONTEXT: ${denik}
+            TVŮJ KONTEXT (Přečti si to pečlivě): ${denik}
             POSLEDNÍ 2 REPORTY (Zhodnoť klientovu únavu a dnešní plán): ${posledniReporty}
             UPOZORNĚNÍ: Tvá data končí v den: ${posledniDatum}. Nemáš čerstvější data z hodinek.
             ÚKOL: Odpověz přátelsky, povzbudivě, stručně a přímo k věci (max 15 vět). Naformátuj odpověď jako čistý HTML kód (použij <p>, <b>, <ul>).
@@ -552,8 +552,6 @@
             const cisteHtml = aiOdpoved.replace(/```html/g, '').replace(/```/g, '').trim();
 
             document.getElementById(typingId).remove();
-            
-            // Uložení AI odpovědi do paměti a na obrazovku
             appendMessage('ai', cisteHtml);
 
             // ULOŽENÍ HISTORIE NA GITHUB (Tichý běh na pozadí)
@@ -579,7 +577,6 @@
             activeBtn.innerHTML = originalHTML;
         }
 
-        // Spuštění při načtení stránky
         window.onload = function() {
             loadChatHistory();
             setTimeout(fetchLastSyncTime, 400);
