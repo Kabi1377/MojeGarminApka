@@ -218,24 +218,20 @@
             inMemoryStorage[key] = val;
         }
 
-        // ====== SPRÁVA KONCEPTU ZPRÁVY (Nové!) ======
+        // KONCEPT ZPRÁVY
         const textareaZprava = document.getElementById('zprava');
-        
-        // 1. Každé písmeno se hned uloží do paměti
         textareaZprava.addEventListener('input', function() {
             setSafeLocal('garmin_draft_msg', this.value);
         });
 
-        // 2. Po načtení stránky se podíváme, jestli tam něco nezůstalo
         function loadDraftMessage() {
             const savedDraft = getSafeLocal('garmin_draft_msg');
             if (savedDraft) {
                 textareaZprava.value = savedDraft;
             }
         }
-        // ===========================================
 
-        // ====== SPRÁVA PAMĚTI CHATU ======
+        // PAMĚŤ CHATU
         function loadChatHistory() {
             const savedChat = getSafeLocal('garmin_local_chat');
             const chatMessages = document.getElementById('chatMessages');
@@ -257,7 +253,7 @@
             
             chatMessages.innerHTML = `
                 <div class="bubble bubble-ai">
-                    👋 Ahoj Kabi! Jsem tvůj AI Trenér. Dole mi můžeš napsat hlášení, dotaz nebo mi nahrát fotku. Cokoliv rozepíšeš, automaticky si ukládám jako koncept, abys o to nepřišel.
+                    👋 Ahoj Kabi! Jsem tvůj AI Trenér. Dole mi můžeš napsat hlášení, dotaz nebo mi nahrát fotku. Cokoliv rozepíšeš, automaticky ukládám jako koncept.
                 </div>
             `;
         }
@@ -290,8 +286,8 @@
                 `;
             }
         }
-        // =================================
 
+        // NASTAVENÍ KLÍČŮ
         function openSettingsModal() {
             document.getElementById('inpGithub').value = getSafeLocal('garmin_app_token') || '';
             document.getElementById('inpGemini').value = getSafeLocal('garmin_gemini_token') || '';
@@ -311,6 +307,7 @@
             setTimeout(fetchLastSyncTime, 300);
         }
 
+        // ZCELA NOVÁ A SPLEHLIVÁ METODA NAČÍTÁNÍ ČASU Z GITHUBU
         async function fetchLastSyncTime() {
             const syncEl = document.getElementById('syncTime');
             const token = getSafeLocal('garmin_app_token');
@@ -319,33 +316,32 @@
                 syncEl.style.color = "#ef4444"; 
                 return;
             }
-            syncEl.innerText = "Synchronizuji...";
+            syncEl.innerText = "Zjišťuji čas...";
             syncEl.style.color = "#f59e0b"; 
             try {
-                const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/historie_planu.json`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3.raw' },
+                // Přímý dotaz na API pro čas posledního zápisu do databáze (commits)
+                const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?path=historie_planu.json&page=1&per_page=1`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3+json' },
                     cache: 'no-store'
                 });
                 
                 if (res.ok) {
-                    const textData = await res.text();
-                    try {
-                        const data = JSON.parse(textData);
-                        if (Array.isArray(data) && data.length > 0) {
-                            const match = data[0].match(/GARMIN \((.*?)\)/i);
-                            if (match) {
-                                syncEl.innerText = match[1];
-                            } else {
-                                syncEl.innerText = "Připojeno ✅";
-                            }
-                            syncEl.style.color = "#34d399"; 
-                            return;
-                        }
-                    } catch(e) {}
-                    syncEl.innerText = "Připojeno (Zatím prázdné)";
-                    syncEl.style.color = "#34d399"; 
+                    const commits = await res.json();
+                    if (commits && commits.length > 0) {
+                        const commitDate = new Date(commits[0].commit.committer.date);
+                        const d = commitDate.getDate().toString().padStart(2, '0');
+                        const m = (commitDate.getMonth() + 1).toString().padStart(2, '0');
+                        const h = commitDate.getHours().toString().padStart(2, '0');
+                        const min = commitDate.getMinutes().toString().padStart(2, '0');
+                        
+                        syncEl.innerText = `${d}.${m}. v ${h}:${min}`;
+                        syncEl.style.color = "#34d399"; 
+                    } else {
+                        syncEl.innerText = "Zatím bez dat";
+                        syncEl.style.color = "#34d399"; 
+                    }
                 } else {
-                    syncEl.innerText = `Chyba API: HTTP ${res.status}`;
+                    syncEl.innerText = `Chyba HTTP ${res.status}`;
                     syncEl.style.color = "#ef4444";
                 }
             } catch(e) {
@@ -354,6 +350,7 @@
             }
         }
 
+        // ZPRACOVÁNÍ FOTEK
         function updateUI() {
             const container = document.getElementById('thumbnailsContainer');
             container.innerHTML = ''; 
@@ -387,7 +384,7 @@
                 
                 for(let f of files) {
                     if(f.type.startsWith('video/')) {
-                        alert("🎬 Odesílání videí přímo z prohlížeče spotřebuje extrémně moc paměti a zatím je zablokováno. Prosím nahraj pouze fotky.");
+                        alert("🎬 Odesílání videí přímo z prohlížeče je dočasně zakázáno, aby se nezasekla paměť. Prosím nahraj pouze fotky.");
                         e.target.value = '';
                         return; 
                     }
@@ -515,7 +512,7 @@
 
                     setTimeout(() => {
                         textareaZprava.value = ''; 
-                        setSafeLocal('garmin_draft_msg', ''); // Vymazání konceptu po úspěchu
+                        setSafeLocal('garmin_draft_msg', '');
                         base64ImagesArray = []; updateUI();
                         btnChat.disabled = false; btnReport.disabled = false;
                         btnChat.style.opacity = "1"; btnReport.style.opacity = "1";
@@ -571,7 +568,7 @@
             document.getElementById(typingId).remove();
             appendMessage('ai', cisteHtml);
 
-            // ULOŽENÍ HISTORIE NA GITHUB (Tichý běh na pozadí)
+            // ULOŽENÍ HISTORIE NA GITHUB
             try {
                 let chatSha = null; let chatHistory = [];
                 const chatRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { headers: { 'Authorization': `Bearer ${ghToken}` }, cache: 'no-store' });
@@ -588,7 +585,6 @@
                 fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(putBody) });
             } catch(err) {}
 
-            // Vyčištění pole a vymazání konceptu z paměti po úspěšném odeslání
             textareaZprava.value = ''; 
             setSafeLocal('garmin_draft_msg', '');
             
@@ -599,9 +595,9 @@
         }
 
         window.onload = function() {
-            loadDraftMessage(); // Načte rozepsaný text
-            loadChatHistory();  // Načte historii bublin
-            setTimeout(fetchLastSyncTime, 400); // Zjistí čas DB
+            loadDraftMessage();
+            loadChatHistory();
+            setTimeout(fetchLastSyncTime, 400);
         };
     </script>
 </body>
