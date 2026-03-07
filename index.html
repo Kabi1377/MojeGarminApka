@@ -224,7 +224,7 @@
                     }
                 } catch(e) {}
             }
-            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven.</div>`;
+            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven na dnešní report.</div>`;
         }
 
         function appendMessage(role, htmlContent, customStyle = null) {
@@ -241,7 +241,7 @@
             if(confirm("Opravdu vymazat historii chatu z displeje?")) {
                 localChatHistory = [];
                 setSafeLocal('garmin_local_chat', JSON.stringify([]));
-                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť z GitHubu zůstává aktivní.</div>`;
+                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť na GitHubu zůstává aktivní.</div>`;
             }
         }
 
@@ -325,7 +325,6 @@
             e.target.value = ''; updateUI();
         });
 
-        // 100% STABILNÍ A ČISTÁ LOGIKA ODESÍLÁNÍ (Zrušeny timeouty a intervaly)
         async function herniLogikaOdeslani(typ_akce) {
             const isChat = typ_akce === 'chat';
             const ghToken = getSafeLocal('garmin_app_token'), gemToken = getSafeLocal('garmin_gemini_token');
@@ -379,7 +378,7 @@
                 });
                 
                 if (dRes.ok || dRes.status === 204) {
-                    appendMessage('ai', "🚀 <b>Žádost o velký report úspěšně odeslán!</b> Skript běží na pozadí.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
+                    appendMessage('ai', "🚀 <b>Povel úspěšně odeslán!</b> Skript běží na pozadí. O zbytek se postará tvůj e-mailový klient (pípne ti jako klasický mail, až report dorazí). Aplikaci můžeš klidně minimalizovat.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
                 } else {
                     throw new Error(`GitHub tě odmítl (HTTP ${dRes.status}). Zkontroluj klíč.`);
                 }
@@ -422,13 +421,12 @@
                 } catch(err) {}
             }
 
-            // Očištění
+            // Bezpečný úklid a obnova tlačítek POUZE PŘI ÚSPĚCHU
             textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
             btnChat.disabled = btnReport.disabled = false;
             btnChat.style.opacity = "1"; btnReport.style.opacity = "1";
             btnChat.innerHTML = origChatHTML;
             btnReport.innerHTML = origReportHTML;
-            setTimeout(fetchLastSyncTime, 2000);
         }
 
         async function fetchGitHubFile(f, t) {
@@ -436,6 +434,7 @@
             return res.ok ? await res.text() : "";
         }
 
+        // Ultimátní obalovač (try-catch) zaručí, že se tlačítka odblokují i v případě kritické chyby
         async function bezpecneOdeslat(t) { 
             const btnChat = document.getElementById('btnChat');
             const btnReport = document.getElementById('btnReport');
