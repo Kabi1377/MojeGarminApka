@@ -224,7 +224,7 @@
                     }
                 } catch(e) {}
             }
-            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér.</div>`;
+            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven.</div>`;
         }
 
         function appendMessage(role, htmlContent, customStyle = null) {
@@ -260,7 +260,7 @@
                     syncEl.innerText = `${data.datum} v ${data.cas}`;
                     syncEl.style.color = "#34d399";
                 } else {
-                    syncEl.innerText = "Zatím bez dat";
+                    syncEl.innerText = "Zatím bez dat (Spusť Report)";
                 }
             } catch(e) { syncEl.innerText = "Chyba spojení"; }
         }
@@ -290,7 +290,7 @@
                 const img = document.createElement('img');
                 img.className = 'thumbnail-img';
                 img.src = "data:image/jpeg;base64," + b64;
-                wrapper.innerHTML = `<div class="thumbnail-delete-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2-2v2"></path></svg></div>`;
+                wrapper.innerHTML = `<div class="thumbnail-delete-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></div>`;
                 wrapper.prepend(img); container.appendChild(wrapper);
             });
             const pill = document.getElementById('photoPill');
@@ -325,7 +325,7 @@
             e.target.value = ''; updateUI();
         });
 
-        // 100% STABILNÍ A ČISTÁ LOGIKA ODESÍLÁNÍ - ŽÁDNÉ ZAMRZÁNÍ TLAČÍTEK
+        // 100% STABILNÍ A ČISTÁ LOGIKA ODESÍLÁNÍ (Zrušeny timeouty a intervaly)
         async function herniLogikaOdeslani(typ_akce) {
             const isChat = typ_akce === 'chat';
             const ghToken = getSafeLocal('garmin_app_token'), gemToken = getSafeLocal('garmin_gemini_token');
@@ -344,11 +344,9 @@
             const btnChat = document.getElementById('btnChat');
             const btnReport = document.getElementById('btnReport');
             
-            // Pojistka pro správné navrácení textů na tlačítka
             const origChatHTML = `<span class="main-text">💬 Živý Chat</span><span class="sub-text">Okamžitá odpověď</span>`;
             const origReportHTML = `<span class="main-text">🚀 Velký Report</span><span class="sub-text">Do E-mailu (PDF)</span>`;
 
-            // Zablokování tlačítek po dobu zpracování
             btnChat.disabled = btnReport.disabled = true; 
             btnChat.style.opacity = "0.5"; btnReport.style.opacity = "0.5";
             
@@ -364,7 +362,7 @@
             else appendMessage('user', `<i>[Požadavek na Velký Report s textem: ${text || "Bez doplňující zprávy"}]</i>`);
 
             if (!isChat) {
-                // VELKÝ REPORT (Jednoduchý a spolehlivý Fire & Forget)
+                // VELKÝ REPORT (Fire & Forget)
                 if (base64ImagesArray.length > 0) {
                     for (let i = 0; i < base64ImagesArray.length; i++) {
                         let fileName = i === 0 ? "fotka.jpg" : `fotka_${i}.jpg`, fileSha = null;
@@ -381,7 +379,7 @@
                 });
                 
                 if (dRes.ok || dRes.status === 204) {
-                    appendMessage('ai', "🚀 <b>Povel úspěšně odeslán!</b> Skript se spustil. O zbytek se postará tvůj e-mailový klient (pípne ti jako klasický mail, až to bude hotové). Aplikaci můžeš klidně zavřít.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
+                    appendMessage('ai', "🚀 <b>Povel úspěšně odeslán!</b> Skript běží na pozadí. O zbytek se postará tvůj e-mailový klient (pípne ti jako klasický mail, až report dorazí). Aplikaci můžeš klidně minimalizovat.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
                 } else {
                     throw new Error(`GitHub tě odmítl (HTTP ${dRes.status}). Zkontroluj klíč.`);
                 }
@@ -424,12 +422,13 @@
                 } catch(err) {}
             }
 
-            // Bezpečný úklid a obnova tlačítek POUZE PŘI ÚSPĚCHU
+            // Očištění
             textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
             btnChat.disabled = btnReport.disabled = false;
             btnChat.style.opacity = "1"; btnReport.style.opacity = "1";
             btnChat.innerHTML = origChatHTML;
             btnReport.innerHTML = origReportHTML;
+            setTimeout(fetchLastSyncTime, 2000);
         }
 
         async function fetchGitHubFile(f, t) {
@@ -437,7 +436,6 @@
             return res.ok ? await res.text() : "";
         }
 
-        // Ultimátní obalovač (try-catch) zaručí, že se tlačítka odblokují i v případě kritické chyby
         async function bezpecneOdeslat(t) { 
             const btnChat = document.getElementById('btnChat');
             const btnReport = document.getElementById('btnReport');
