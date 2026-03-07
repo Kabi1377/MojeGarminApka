@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Garmin AI Trenér</title>
     <style>
+        /* RESET A ZÁKLADNÍ NASTAVENÍ */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        body { background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; overflow: hidden; padding: 6px; position: relative;}
+        
+        body { background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; overflow: hidden; padding: 6px; }
         
         .app-container { width: 100%; max-width: 480px; height: 100%; display: flex; flex-direction: column; background-color: #1e293b; border-radius: 20px; border: 1px solid #334155; box-shadow: 0 10px 40px rgba(0,0,0,0.5); overflow: hidden; }
         
@@ -33,6 +35,13 @@
         .bubble-ai p { margin-bottom: 6px; }
         .bubble-ai p:last-child { margin-bottom: 0; }
         .bubble-ai b, .bubble-ai strong { color: #34d399; }
+        
+        .typing-indicator { display: flex; gap: 4px; padding: 10px 14px; background-color: #334155; border-radius: 16px; border-bottom-left-radius: 4px; align-self: flex-start; width: fit-content; }
+        .dot { width: 5px; height: 5px; background-color: #94a3b8; border-radius: 50%; animation: typing 1.4s infinite ease-in-out; }
+        .dot:nth-child(1) { animation-delay: 0s; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
         .bottom-section { padding: 10px 15px 12px 15px; background-color: #1e293b; border-top: 1px solid #334155; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
 
@@ -74,11 +83,6 @@
         ::-webkit-scrollbar { height: 4px; width: 4px; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
 
-        #inAppNotification { position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 25px 20px 15px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; z-index: 9999; transform: translateY(-100%); transition: transform 0.4s ease-out; }
-        #inAppNotification.show { transform: translateY(0); }
-        .in-app-title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px;}
-        .in-app-desc { font-size: 13px; opacity: 0.9; text-align: center;}
-
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
         .modal-content { background: #1e293b; width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; border: 1px solid #475569; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
         .modal-title { font-size: 16px; font-weight: 700; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 2px; color: white;}
@@ -96,11 +100,6 @@
     </style>
 </head>
 <body>
-
-    <div id="inAppNotification">
-        <div class="in-app-title">✅ Report Úspěšně Odeslán</div>
-        <div class="in-app-desc">Otevři si e-mail. Aplikace načetla nová data.</div>
-    </div>
 
     <div class="app-container">
         
@@ -121,7 +120,9 @@
             </div>
         </div>
 
-        <div id="chatMessages" class="chat-messages"></div>
+        <div id="chatMessages" class="chat-messages">
+            <!-- Dynamický obsah -->
+        </div>
 
         <div class="bottom-section">
             <div class="input-group">
@@ -186,35 +187,6 @@
         let base64ImagesArray = []; 
         let inMemoryStorage = {};
         let localChatHistory = [];
-        let pollingInterval = null;
-        let hideNotificationTimeout;
-
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx;
-
-        function initializeAudio() {
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }
-
-        function playSuccessBeep() {
-            try {
-                if (!audioCtx) return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                osc.type = 'sine'; osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + 0.15);
-
-                const osc2 = audioCtx.createOscillator();
-                const gain2 = audioCtx.createGain();
-                osc2.connect(gain2); gain2.connect(audioCtx.destination);
-                osc2.type = 'sine'; osc2.frequency.setValueAtTime(1046.5, audioCtx.currentTime + 0.2); 
-                gain2.gain.setValueAtTime(0.1, audioCtx.currentTime + 0.2);
-                osc2.start(audioCtx.currentTime + 0.2); osc2.stop(audioCtx.currentTime + 0.4);
-            } catch(e) {}
-        }
 
         function getSafeLocal(key) {
             try { if (window.localStorage) { let val = window.localStorage.getItem(key); if (val) return val; } } catch(e) {}
@@ -244,30 +216,21 @@
                         chatMessages.innerHTML = '';
                         localChatHistory.forEach(msg => {
                             let style = msg.style ? ` style="${msg.style}"` : "";
-                            chatMessages.innerHTML += `<div class="bubble bubble-${msg.role}"${style} id="${msg.id || ''}">${msg.content}</div>`;
+                            chatMessages.innerHTML += `<div class="bubble bubble-${msg.role}"${style}>${msg.content}</div>`;
                         });
                         scrollChatToBottom();
                         return;
                     }
                 } catch(e) {}
             }
-            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem připraven na dnešní report a tvůj RPG postup.</div>`;
+            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven na dnešní report.</div>`;
         }
 
-        function appendMessage(role, htmlContent, customStyle = null, customId = null) {
+        function appendMessage(role, htmlContent, customStyle = null) {
             const chatMessages = document.getElementById('chatMessages');
             let styleAttr = customStyle ? ` style="${customStyle}"` : "";
-            let idAttr = customId ? ` id="${customId}"` : "";
-            
-            if (customId && document.getElementById(customId)) {
-                document.getElementById(customId).innerHTML = htmlContent;
-                let existingIndex = localChatHistory.findIndex(m => m.id === customId);
-                if (existingIndex !== -1) localChatHistory[existingIndex].content = htmlContent;
-            } else {
-                chatMessages.innerHTML += `<div class="bubble bubble-${role}"${styleAttr}${idAttr}>${htmlContent}</div>`;
-                localChatHistory.push({ role: role, content: htmlContent, style: customStyle, id: customId });
-            }
-
+            chatMessages.innerHTML += `<div class="bubble bubble-${role}"${styleAttr}>${htmlContent}</div>`;
+            localChatHistory.push({ role: role, content: htmlContent, style: customStyle });
             if (localChatHistory.length > 30) localChatHistory.shift();
             setSafeLocal('garmin_local_chat', JSON.stringify(localChatHistory));
             scrollChatToBottom();
@@ -277,14 +240,14 @@
             if(confirm("Opravdu vymazat historii chatu z displeje?")) {
                 localChatHistory = [];
                 setSafeLocal('garmin_local_chat', JSON.stringify([]));
-                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť z GitHubu zůstává aktivní.</div>`;
+                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť na GitHubu zůstává aktivní.</div>`;
             }
         }
 
         async function fetchLastSyncTime() {
             const syncEl = document.getElementById('syncTime');
             const token = getSafeLocal('garmin_app_token');
-            if (!token) { syncEl.innerText = "Nenastaveno"; return; }
+            if (!token) { syncEl.innerText = "Nenastaveno (⚙️)"; return; }
             
             try {
                 const cacheBuster = new Date().getTime();
@@ -296,7 +259,7 @@
                     syncEl.innerText = `${data.datum} v ${data.cas}`;
                     syncEl.style.color = "#34d399";
                 } else {
-                    syncEl.innerText = "Zatím bez dat";
+                    syncEl.innerText = "Zatím bez dat (Spusť Report)";
                 }
             } catch(e) { syncEl.innerText = "Chyba spojení"; }
         }
@@ -330,13 +293,14 @@
                 wrapper.prepend(img); container.appendChild(wrapper);
             });
             const pill = document.getElementById('photoPill');
-            if (base64ImagesArray.length > 0) { pill.classList.add('has-photo'); document.getElementById('fotoNazev').innerText = `${base64ImagesArray.length} fotek ✅`; }
-            else { pill.classList.remove('has-photo'); document.getElementById('fotoNazev').innerText = "Přidat fotky"; }
+            if (base64ImagesArray.length > 0) { pill.classList.add('has-photo'); document.getElementById('fotoNazev').innerText = `${base64ImagesArray.length} položek připraveno ✅`; }
+            else { pill.classList.remove('has-photo'); document.getElementById('fotoNazev').innerText = "Přidat fotky / video"; }
         }
 
         document.getElementById('fotoInput').addEventListener('change', async function(e) {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
+            for(let f of files) { if(f.type.startsWith('video/')) { alert("🎬 Odesílání videí je zatím omezeno. Nahraj prosím fotky."); e.target.value = ''; return; } }
             document.getElementById('fotoNazev').innerText = "Zpracovávám...";
             for (let file of files) {
                 await new Promise((resolve) => {
@@ -360,32 +324,32 @@
             e.target.value = ''; updateUI();
         });
 
-        function ukazatInAppUpozorneni() {
-            const notif = document.getElementById('inAppNotification');
-            notif.classList.add('show');
-            playSuccessBeep();
-            if (navigator.vibrate) { navigator.vibrate([200, 100, 200]); }
-            clearTimeout(hideNotificationTimeout);
-            hideNotificationTimeout = setTimeout(() => { notif.classList.remove('show'); }, 7000);
-        }
-
+        // 3X OŠETŘENÁ A OPRAVENÁ LOGIKA ODESÍLÁNÍ
         async function herniLogikaOdeslani(typ_akce) {
-            initializeAudio();
-
             const isChat = typ_akce === 'chat';
             const ghToken = getSafeLocal('garmin_app_token'), gemToken = getSafeLocal('garmin_gemini_token');
             if (!ghToken || (isChat && !gemToken)) { openSettingsModal(); return; }
             const text = textareaZprava.value;
-            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš zprávu."); return; }
+            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš nejdřív zprávu nebo vlož fotku."); return; }
 
-            const btnChat = document.getElementById('btnChat'), btnReport = document.getElementById('btnReport');
-            const activeBtn = isChat ? btnChat : btnReport, originalHTML = activeBtn.innerHTML;
-            btnChat.disabled = btnReport.disabled = true; activeBtn.innerHTML = `<div class="spinner"></div>`;
+            const btnChat = document.getElementById('btnChat');
+            const btnReport = document.getElementById('btnReport');
+            const activeBtn = isChat ? btnChat : btnReport;
+            
+            // Pojistka pro správné navrácení textů na tlačítka
+            const origChatHTML = `<span class="main-text">💬 Živý Chat</span><span class="sub-text">Okamžitá odpověď</span>`;
+            const origReportHTML = `<span class="main-text">🚀 Velký Report</span><span class="sub-text">Do E-mailu (PDF)</span>`;
+
+            btnChat.disabled = btnReport.disabled = true; 
+            btnChat.style.opacity = "0.5"; btnReport.style.opacity = "0.5";
+            activeBtn.style.opacity = "1";
+            activeBtn.innerHTML = `<svg class="spinner mb-1" style="color:white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="main-text text-sm">${isChat ? "Odesílám..." : "Generuji..."}</span>`;
 
             if(isChat) appendMessage('user', text + (base64ImagesArray.length > 0 ? "<br><i>[Přiloženy fotky]</i>" : ""));
-            else appendMessage('user', `<i>[Požadavek na Velký Report: ${text || "Bez zprávy"}]</i>`);
+            else appendMessage('user', `<i>[Požadavek na Velký Report: ${text || "Bez doplňující zprávy"}]</i>`);
 
             if (!isChat) {
+                // VELKÝ REPORT (Jednoduchý a spolehlivý Fire & Forget)
                 if (base64ImagesArray.length > 0) {
                     for (let i = 0; i < base64ImagesArray.length; i++) {
                         let fileName = i === 0 ? "fotka.jpg" : `fotka_${i}.jpg`, fileSha = null;
@@ -395,60 +359,29 @@
                     }
                 }
 
-                const casStartu = new Date().getTime();
-                const dRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, { method: 'POST', headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main', inputs: { zprava: text || "" } }) });
+                const dRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, { 
+                    method: 'POST', 
+                    headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ ref: 'main', inputs: { zprava: text || "" } }) 
+                });
                 
-                if (dRes.ok) {
-                    const statusBubbleId = 'status-bubble-' + Date.now();
-                    // Zrušeno odpočítávadlo - jen zpráva, že se čeká.
-                    appendMessage('ai', "🚀 <b>Povel odeslán!</b> Na pozadí se stahují data z Garminu a tvoří se Report. Až to bude, oznámím ti to.", "border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);", statusBubbleId);
-                    
-                    textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
-                    btnChat.disabled = btnReport.disabled = false; activeBtn.innerHTML = originalHTML;
-
-                    let pokusy = 0;
-                    if (pollingInterval) clearInterval(pollingInterval);
-                    
-                    pollingInterval = setInterval(async () => {
-                        pokusy++;
-                        if(pokusy > 60) { 
-                            clearInterval(pollingInterval); 
-                            appendMessage('ai', "⚠️ Report trvá trochu déle než obvykle, ale dorazí ti do e-mailu každou chvíli.", "border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);", statusBubbleId);
-                            return; 
-                        }
-
-                        try {
-                            const cacheBuster2 = new Date().getTime();
-                            const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs?event=workflow_dispatch&per_page=3&t=${cacheBuster2}`, { 
-                                headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' }, cache: 'no-store' 
-                            });
-                            
-                            if (res.ok) {
-                                const data = await res.json();
-                                const mujBeh = data.workflow_runs.find(r => new Date(r.created_at).getTime() > casStartu - 60000);
-
-                                if (mujBeh && mujBeh.status === 'completed') {
-                                    clearInterval(pollingInterval);
-                                    if (mujBeh.conclusion === 'success') {
-                                        appendMessage('ai', "✅ <b>HOTOVO!</b> Tvůj Velký Report je v e-mailu. Načetl jsem si nejnovější data a body.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);", statusBubbleId);
-                                        fetchLastSyncTime();
-                                        ukazatInAppUpozorneni(); // VIBRACE, PÍPNUTÍ, BANNER
-                                    } else {
-                                        appendMessage('ai', `❌ <b>CHYBA:</b> Report selhal na straně serveru.`, "border-left: 4px solid #ef4444; background-color: rgba(239, 68, 68, 0.1);", statusBubbleId);
-                                    }
-                                }
-                            }
-                        } catch(e) {}
-                    }, 10000); 
+                if (dRes.ok || dRes.status === 204) {
+                    appendMessage('ai', "🚀 <b>Povel úspěšně odeslán!</b> Skript se spustil na pozadí. Aplikaci nyní můžeš bezpečně zavřít. Jakmile bude report hotový, <b>tvoje e-mailová aplikace tě sama upozorní notifikací</b>.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
                 } else {
-                    throw new Error(`Odmítnuto (HTTP ${dRes.status}).`);
+                    throw new Error(`GitHub tě odmítl (HTTP ${dRes.status}).`);
                 }
             } else {
+                // ŽIVÝ CHATBOT
+                const chatMessages = document.getElementById('chatMessages');
+                const typingId = "typing-" + Date.now();
+                chatMessages.innerHTML += `<div id="${typingId}" class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+                scrollChatToBottom();
+
                 const denik = await fetchGitHubFile("denik.txt", ghToken);
                 let hData = await fetchGitHubFile("historie_planu.json", ghToken), pReporty = "";
                 try { pReporty = JSON.parse(hData).slice(0, 20).join("\n\n---\n\n"); } catch(e) {}
                 
-                let promptText = `Jsi elitní osobní AI trenér. Klient píše: "${text}". KONTEXT: ${denik}. HISTORIE 20 REPORTŮ: ${pReporty}. ÚKOL: Odpověz bleskově (max 15 vět). HTML kód.`;
+                let promptText = `Jsi elitní osobní AI trenér. Klient ti píše v chatu: "${text}". KONTEXT (Deník): ${denik}. POSLEDNÍCH 20 REPORTŮ: ${pReporty}. ÚKOL: Odpověz bleskově, přátelsky a přímo k věci (max 15 vět). Formátuj jako čistý HTML kód (použij <p>, <b>, <ul>).`;
                 const payload = { contents: [{ parts: [{ text: promptText }] }] };
                 base64ImagesArray.forEach(b => payload.contents[0].parts.push({ inlineData: { mimeType: "image/jpeg", data: b } }));
                 
@@ -457,16 +390,51 @@
                 
                 const data = await response.json();
                 const aiOdpoved = data.candidates[0].content.parts[0].text.replace(/```html/g, '').replace(/```/g, '').trim();
+                
+                document.getElementById(typingId).remove();
                 appendMessage('ai', aiOdpoved);
 
-                textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
-                btnChat.disabled = btnReport.disabled = false; activeBtn.innerHTML = originalHTML;
+                try {
+                    let chatSha = null, chatHistory = [];
+                    const chatRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json?t=${new Date().getTime()}`, { headers: { 'Authorization': `Bearer ${ghToken}` }, cache: 'no-store' });
+                    if (chatRes.ok) {
+                        const chatJson = await chatRes.json();
+                        chatSha = chatJson.sha;
+                        chatHistory = JSON.parse(decodeURIComponent(escape(atob(chatJson.content))));
+                    }
+                    chatHistory.push({ "uživatel": text || "[Foto]", "ai": aiOdpoved });
+                    if (chatHistory.length > 5) chatHistory = chatHistory.slice(-5);
+                    const putBody = { message: "Uložení chatu", content: btoa(unescape(encodeURIComponent(JSON.stringify(chatHistory, null, 2)))), sha: chatSha };
+                    fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(putBody) });
+                } catch(err) {}
             }
+
+            // Bezpečný úklid a obnova tlačítek
+            textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
+            btnChat.disabled = btnReport.disabled = false;
+            btnChat.style.opacity = "1"; btnReport.style.opacity = "1";
+            btnChat.innerHTML = `<span class="main-text">💬 Živý Chat</span><span class="sub-text">Okamžitá odpověď</span>`;
+            btnReport.innerHTML = `<span class="main-text">🚀 Velký Report</span><span class="sub-text">Do E-mailu (PDF)</span>`;
         }
 
         async function fetchGitHubFile(f, t) {
             const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${f}?t=${new Date().getTime()}`, { headers: { 'Authorization': `Bearer ${t}`, 'Accept': 'application/vnd.github.v3.raw' }, cache: 'no-store' });
             return res.ok ? await res.text() : "";
+        }
+
+        // Ultimátní obalovač (try-catch) zaručí, že se tlačítka odblokují i v případě kritické chyby sítě
+        async function bezpecneOdeslat(t) { 
+            const btnChat = document.getElementById('btnChat');
+            const btnReport = document.getElementById('btnReport');
+            try { 
+                await herniLogikaOdeslani(t); 
+            } catch (e) { 
+                alert("Něco se pokazilo: " + e.message); 
+                btnChat.disabled = btnReport.disabled = false; 
+                btnChat.style.opacity = "1"; btnReport.style.opacity = "1";
+                btnChat.innerHTML = `<span class="main-text">💬 Živý Chat</span><span class="sub-text">Okamžitá odpověď</span>`;
+                btnReport.innerHTML = `<span class="main-text">🚀 Velký Report</span><span class="sub-text">Do E-mailu (PDF)</span>`;
+            } 
         }
 
         window.onload = () => { loadDraftMessage(); loadChatHistory(); setTimeout(fetchLastSyncTime, 400); };
