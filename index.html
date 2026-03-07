@@ -183,7 +183,6 @@
         </div>
     </div>
 
-    <!-- HLAVNÍ JAVASCRIPT LOGIKA -->
     <script>
         const GITHUB_OWNER = "Kabi1377"; 
         const GITHUB_REPO = "Garmin---AI---Trener-"; 
@@ -324,22 +323,48 @@
             e.target.value = ''; updateUI();
         });
 
+        // Žádost o povolení notifikací hned po spuštění prvního procesu
+        function vyzadovatNotifikace() {
+            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
+        }
+
+        // Funkce pro odeslání samotné PUSH notifikace a vibrace do mobilu
+        function odeslatUpozorneniDoMobilu() {
+            // Zavibruje (200ms vibrace, 100ms pauza, 200ms vibrace)
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }
+            
+            // Otevře systémové upozornění Androidu
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Garmin AI Trenér', {
+                    body: '✅ Skript dokončen! Velký Report na tebe čeká v e-mailu.',
+                    vibrate: [200, 100, 200]
+                });
+            }
+        }
+
         async function herniLogikaOdeslani(typ_akce) {
+            // Zkusíme zapnout notifikace, pokud je klient ještě nepovolil
+            vyzadovatNotifikace();
+
             const isChat = typ_akce === 'chat';
             const ghToken = getSafeLocal('garmin_app_token'), gemToken = getSafeLocal('garmin_gemini_token');
             if (!ghToken || (isChat && !gemToken)) { openSettingsModal(); return; }
             const text = textareaZprava.value;
-            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš zprávu nebo vlož fotku."); return; }
+            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš nejdřív zprávu nebo vlož fotku."); return; }
 
             const btnChat = document.getElementById('btnChat'), btnReport = document.getElementById('btnReport');
             const activeBtn = isChat ? btnChat : btnReport, originalHTML = activeBtn.innerHTML;
             btnChat.disabled = btnReport.disabled = true; activeBtn.innerHTML = `<div class="spinner"></div>`;
 
             if(isChat) appendMessage('user', text + (base64ImagesArray.length > 0 ? "<br><i>[Přiloženy fotky]</i>" : ""));
-            else appendMessage('user', `<i>[Povel pro vygenerování Velkého Reportu]</i>`);
+            else appendMessage('user', `<i>[Požadavek na Velký Report s textem: ${text || "Bez doplňující zprávy"}]</i>`);
 
             if (!isChat) {
-                // VELKÝ REPORT
+                // --- VELKÝ REPORT (Přes GitHub Actions) ---
                 if (base64ImagesArray.length > 0) {
                     for (let i = 0; i < base64ImagesArray.length; i++) {
                         let fileName = i === 0 ? "fotka.jpg" : `fotka_${i}.jpg`, fileSha = null;
@@ -349,27 +374,28 @@
                     }
                 }
 
-                // 1. Zjistíme ID posledního běhu PŘED spuštěním
-                let previousRunId = null;
+                // Zjistíme poslední ID běhu PŘED spuštěním (abychom věděli, na co čekáme)
+                let predchoziRunId = null;
                 try {
                     const preRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs?event=workflow_dispatch&per_page=1`, { headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' } });
-                    if (preRes.ok) { const preData = await preRes.json(); if (preData.workflow_runs.length > 0) previousRunId = preData.workflow_runs[0].id; }
+                    if (preRes.ok) { const preData = await preRes.json(); if (preData.workflow_runs.length > 0) predchoziRunId = preData.workflow_runs[0].id; }
                 } catch(e) {}
 
-                // 2. Spustíme Report
+                // Odeslání spouštěcího signálu
                 const dRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, { method: 'POST', headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main', inputs: { zprava: text || "" } }) });
                 
                 if (dRes.ok) {
-                    appendMessage('ai', "🚀 <b>Povel odeslán!</b> Databáze na pozadí začala pracovat. Tvé hodinky se synchronizují. Jakmile se report odešle do e-mailu, dám ti vědět.", "border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);");
+                    appendMessage('ai', "🚀 <b>Povel odeslán!</b> Na pozadí začíná stahování dat z Garminu a tvorba tabulek. Až bude vše hotovo, dám ti vědět upozorněním do telefonu.", "border-left: 4px solid #f59e0b; background-color: rgba(245, 158, 11, 0.1);");
                     
                     textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
                     btnChat.disabled = btnReport.disabled = false; activeBtn.innerHTML = originalHTML;
 
-                    // 3. Živé sledování dokončení (LIVE POLLING)
-                    let activeRunId = null; let pollAttempts = 0;
-                    const checkInterval = setInterval(async () => {
-                        pollAttempts++;
-                        if(pollAttempts > 30) { clearInterval(checkInterval); return; } // Timeout po 5 minutách
+                    // ŽIVÉ ODPOSLOUCHÁVÁNÍ DOKONČENÍ
+                    let pokusy = 0;
+                    let novyRunId = null;
+                    const smycka = setInterval(async () => {
+                        pokusy++;
+                        if(pokusy > 35) { clearInterval(smycka); return; } // Timeout po 6 minutách
 
                         try {
                             const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs?event=workflow_dispatch&per_page=3`, { headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json' } });
@@ -377,31 +403,35 @@
                                 const data = await res.json();
                                 const runs = data.workflow_runs;
                                 
-                                // Hledáme nový běh, který začal až po kliknutí
-                                if (!activeRunId && runs.length > 0 && runs[0].id !== previousRunId) {
-                                    activeRunId = runs[0].id; 
+                                // Hledáme ID toho našeho nového procesu
+                                if (!novyRunId && runs.length > 0 && runs[0].id !== predchoziRunId) {
+                                    novyRunId = runs[0].id;
                                 }
 
-                                if (activeRunId) {
-                                    const myRun = runs.find(r => r.id === activeRunId);
-                                    if (myRun && myRun.status === 'completed') {
-                                        clearInterval(checkInterval);
-                                        if (myRun.conclusion === 'success') {
-                                            appendMessage('ai', "✅ <b>HOTOVO!</b> Tvůj Garmin Dashboard byl úspěšně vygenerován a právě ti přistál v e-mailu. Moje paměť je plně zaktualizována na aktuální stav.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
-                                            fetchLastSyncTime(); // Oživíme horní čas
+                                // Pokud už běží náš proces, kontrolujeme, jestli skončil
+                                if (novyRunId) {
+                                    const mujBeh = runs.find(r => r.id === novyRunId);
+                                    if (mujBeh && mujBeh.status === 'completed') {
+                                        clearInterval(smycka); // Vypnutí smyčky
+                                        
+                                        if (mujBeh.conclusion === 'success') {
+                                            appendMessage('ai', "✅ <b>HOTOVO!</b> Tvůj Velký Report byl úspěšně vygenerován a odeslán do e-mailu. Načetl jsem si nejnovější data a jsem připraven k další analýze.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
+                                            fetchLastSyncTime(); // Automatická aktualizace času nahoře
+                                            odeslatUpozorneniDoMobilu(); // Pípnutí a vibrace
                                         } else {
-                                            appendMessage('ai', "❌ <b>CHYBA:</b> Generování reportu selhalo. Skript nenašel data nebo vypršel čas.", "border-left: 4px solid #ef4444; background-color: rgba(239, 68, 68, 0.1);");
+                                            appendMessage('ai', "❌ <b>CHYBA:</b> Někde na serveru nastal problém. Report selhal.", "border-left: 4px solid #ef4444; background-color: rgba(239, 68, 68, 0.1);");
                                         }
                                     }
                                 }
                             }
                         } catch(e) {}
-                    }, 10000); // Kontrola každých 10 sekund
+                    }, 10000); // Ptá se GitHubu každých 10 vteřin
                 } else {
-                    throw new Error(`GitHub tě odmítl (HTTP ${dRes.status}). Otevři repozitář na GitHubu a zkontroluj Action Permissions.`);
+                    throw new Error(`Odmítnuto (HTTP ${dRes.status}).`);
                 }
+                return;
             } else {
-                // ŽIVÝ CHATBOT
+                // --- ŽIVÝ CHATBOT (Přes Gemini API) ---
                 const denik = await fetchGitHubFile("denik.txt", ghToken);
                 let hData = await fetchGitHubFile("historie_planu.json", ghToken), pReporty = "";
                 try { pReporty = JSON.parse(hData).slice(0, 20).join("\n\n---\n\n"); } catch(e) {}
@@ -411,7 +441,7 @@
                 base64ImagesArray.forEach(b => payload.contents[0].parts.push({ inlineData: { mimeType: "image/jpeg", data: b } }));
                 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${gemToken}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if(!response.ok) throw new Error("Google AI tě odmítlo. Zkontroluj Gemini klíč.");
+                if(!response.ok) throw new Error("Google AI tě odmítlo. Zkontroluj klíč v nastavení.");
                 
                 const data = await response.json();
                 const aiOdpoved = data.candidates[0].content.parts[0].text.replace(/```html/g, '').replace(/```/g, '').trim();
@@ -430,10 +460,10 @@
                     const putBody = { message: "Uložení chatu", content: btoa(unescape(encodeURIComponent(JSON.stringify(chatHistory, null, 2)))), sha: chatSha };
                     fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(putBody) });
                 } catch(err) {}
-
-                textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
-                btnChat.disabled = btnReport.disabled = false; activeBtn.innerHTML = originalHTML;
             }
+
+            textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
+            btnChat.disabled = btnReport.disabled = false; activeBtn.innerHTML = originalHTML;
         }
 
         async function fetchGitHubFile(f, t) {
