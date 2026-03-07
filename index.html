@@ -379,7 +379,7 @@
                 });
                 
                 if (dRes.ok || dRes.status === 204) {
-                    appendMessage('ai', "🚀 <b>Povel úspěšně odeslán!</b> Skript běží na pozadí. O zbytek se postará tvůj e-mailový klient (pípne ti jako klasický mail, až report dorazí). Aplikaci můžeš klidně minimalizovat.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
+                    appendMessage('ai', "🚀 <b>Žádost o velký report úspěšně odeslán!</b> Skript běží na pozadí.", "border-left: 4px solid #10b981; background-color: rgba(16, 185, 129, 0.1);");
                 } else {
                     throw new Error(`GitHub tě odmítl (HTTP ${dRes.status}). Zkontroluj klíč.`);
                 }
