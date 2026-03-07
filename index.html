@@ -8,7 +8,7 @@
         /* RESET A ZÁKLADNÍ NASTAVENÍ */
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         
-        /* 100dvh pro dokonalé vyplnění displeje na mobilu */
+        /* 100dvh pro dokonalé vyplnění displeje na mobilu bez přetékání */
         body { background-color: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; overflow: hidden; padding: 6px; }
         
         /* HLAVNÍ KARTA APLIKACE */
@@ -50,12 +50,14 @@
         /* 3. OVLÁDACÍ PRVKY (Dole) */
         .bottom-section { padding: 10px 15px 12px 15px; background-color: #1e293b; border-top: 1px solid #334155; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
 
+        /* Textové pole */
         .input-group { display: flex; flex-direction: column; gap: 4px; }
         .input-label { font-size: 11px; font-weight: 600; color: #94a3b8; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.5px;}
         .textarea-custom { width: 100%; height: 60px; background-color: #0f172a; border: 1px solid #475569; border-radius: 12px; padding: 10px; font-size: 14px; color: #f8fafc; resize: none; transition: border-color 0.3s; }
         .textarea-custom:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
         .textarea-custom::placeholder { color: #64748b; }
 
+        /* Tlačítka Dual */
         .btn-container { display: flex; gap: 8px; }
         .action-btn { flex: 1; color: white; border: none; padding: 10px 4px; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; transition: transform 0.1s, opacity 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
         .action-btn:active { transform: scale(0.96); }
@@ -65,6 +67,7 @@
         .btn-chat { background: linear-gradient(135deg, #6366f1, #4f46e5); border: 1px solid rgba(99, 102, 241, 0.3); }
         .btn-report { background: linear-gradient(135deg, #10b981, #059669); border: 1px solid rgba(16, 185, 129, 0.3); }
 
+        /* Fotky a Video */
         .photo-section { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
         .photo-pill { display: flex; align-items: center; justify-content: space-between; background-color: #0f172a; border: 1px dashed #475569; border-radius: 10px; padding: 6px 10px; }
         .photo-info { display: flex; align-items: center; gap: 8px; overflow: hidden; }
@@ -85,6 +88,7 @@
         .thumbnail-delete-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ef4444; opacity: 0; transition: opacity 0.2s; }
         .thumbnail-wrapper:hover .thumbnail-delete-icon { opacity: 1; }
 
+        /* SCROLLBARY */
         ::-webkit-scrollbar { height: 4px; width: 4px; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
 
@@ -101,6 +105,9 @@
         .modal-btn-save { background: #10b981; color: white; }
         .modal-btn-cancel { background: #334155; color: #cbd5e1; }
         .modal-btn:active { transform: scale(0.95); }
+
+        .spinner { animation: spin 1s linear infinite; width: 16px; height: 16px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; display: inline-block; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -115,7 +122,7 @@
                     Garmin AI Trenér
                 </div>
                 <div class="header-actions">
-                    <button class="clear-chat-btn" onclick="clearLocalChat()" title="Vymazat chat">🗑️</button>
+                    <button class="clear-chat-btn" onclick="clearLocalChat()" title="Vymazat chat z displeje">🗑️</button>
                     <button class="change-token" onclick="openSettingsModal()">⚙️ Klíče</button>
                 </div>
             </div>
@@ -127,28 +134,31 @@
 
         <!-- 2. CHATOVACÍ OKNO -->
         <div id="chatMessages" class="chat-messages">
-            <!-- Načte se z JS -->
+            <!-- Dynamický obsah z paměti nebo úvodní zpráva -->
         </div>
 
         <!-- 3. OVLÁDACÍ PRVKY DOLE -->
         <div class="bottom-section">
             
+            <!-- Vstupní textové pole -->
             <div class="input-group">
                 <span class="input-label">Hlášení & Úkoly pro AI</span>
                 <textarea id="zprava" class="textarea-custom" placeholder="Napiš, co máš na srdci..."></textarea>
             </div>
 
+            <!-- Tlačítka pro odeslání -->
             <div class="btn-container">
                 <button id="btnChat" class="action-btn btn-chat" onclick="bezpecneOdeslat('chat')">
                     <span class="main-text">💬 Živý Chat</span>
-                    <span class="sub-text">Okamžitá odpověď</span>
+                    <span class="sub-text">Okamžitá AI odpověď</span>
                 </button>
                 <button id="btnReport" class="action-btn btn-report" onclick="bezpecneOdeslat('report')">
                     <span class="main-text">🚀 Velký Report</span>
-                    <span class="sub-text">Do E-mailu (PDF)</span>
+                    <span class="sub-text">Nová data do E-mailu</span>
                 </button>
             </div>
 
+            <!-- Přílohy (Fotky) -->
             <div class="photo-section">
                 <div class="photo-pill" id="photoPill">
                     <div class="photo-info">
@@ -158,7 +168,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
                             </svg>
                         </div>
-                        <span id="fotoNazev" class="photo-text">Přidat Fotky / Video</span>
+                        <span id="fotoNazev" class="photo-text">Přidat fotky / video</span>
                     </div>
                     <input type="file" id="fotoInput" accept="image/*, video/*" multiple style="display: none;">
                     <button class="upload-btn" onclick="document.getElementById('fotoInput').click()">Vybrat soubor</button>
@@ -169,7 +179,7 @@
         </div>
     </div>
 
-    <!-- WIDGET PRO NASTAVENÍ KLÍČŮ -->
+    <!-- MODÁLNÍ OKNO PRO NASTAVENÍ KLÍČŮ -->
     <div id="settingsModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-title">⚙️ Tvé API Klíče</div>
@@ -197,15 +207,12 @@
         const GITHUB_OWNER = "Kabi1377"; 
         const GITHUB_REPO = "Garmin---AI---Trener-"; 
         const WORKFLOW_ID = "garmin.yml"; 
+        
         let base64ImagesArray = []; 
         let inMemoryStorage = {};
         let localChatHistory = [];
 
-        function scrollChatToBottom() {
-            const chatMessages = document.getElementById('chatMessages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
+        // --- POMOCNÉ FUNKCE PRO PAMĚŤ ---
         function getSafeLocal(key) {
             try { if (window.localStorage) { let val = window.localStorage.getItem(key); if (val) return val; } } catch(e) {}
             return inMemoryStorage[key] || null;
@@ -216,7 +223,7 @@
             inMemoryStorage[key] = val;
         }
 
-        // KONCEPT ZPRÁVY
+        // --- KONCEPT ZPRÁVY (Auto-Draft) ---
         const textareaZprava = document.getElementById('zprava');
         textareaZprava.addEventListener('input', function() {
             setSafeLocal('garmin_draft_msg', this.value);
@@ -227,7 +234,7 @@
             if (savedDraft) textareaZprava.value = savedDraft;
         }
 
-        // PAMĚŤ CHATU
+        // --- PAMĚŤ CHATU ---
         function loadChatHistory() {
             const savedChat = getSafeLocal('garmin_local_chat');
             const chatMessages = document.getElementById('chatMessages');
@@ -240,32 +247,63 @@
                             let style = msg.style ? ` style="${msg.style}"` : "";
                             chatMessages.innerHTML += `<div class="bubble bubble-${msg.role}"${style}>${msg.content}</div>`;
                         });
-                        scrollChatToBottom();
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
                         return;
                     }
                 } catch(e) {}
             }
-            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven analyzovat tvých posledních <b>30 reportů</b> pro maximální přehled o tvém měsíčním progresu.</div>`;
+            chatMessages.innerHTML = `<div class="bubble bubble-ai">👋 Ahoj Kabi! Jsem tvůj AI Trenér. Jsem připraven analyzovat tvých posledních <b>20 reportů</b> pro přesné rady na míru tvému aktuálnímu stavu.</div>`;
         }
 
         function appendMessage(role, htmlContent, customStyle = null) {
             const chatMessages = document.getElementById('chatMessages');
             let styleAttr = customStyle ? ` style="${customStyle}"` : "";
+            
             chatMessages.innerHTML += `<div class="bubble bubble-${role}"${styleAttr}>${htmlContent}</div>`;
+            
             localChatHistory.push({ role: role, content: htmlContent, style: customStyle });
+            
+            // Udržíme v paměti posledních 30 bublin, aby appka nelagovala
             if (localChatHistory.length > 30) localChatHistory.shift();
+            
             setSafeLocal('garmin_local_chat', JSON.stringify(localChatHistory));
-            scrollChatToBottom();
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         function clearLocalChat() {
-            if(confirm("Opravdu vymazat chat z displeje?")) {
+            if(confirm("Opravdu vymazat historii chatu z displeje?")) {
                 localChatHistory = [];
                 setSafeLocal('garmin_local_chat', JSON.stringify([]));
-                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť na 30 reportů zůstává aktivní.</div>`;
+                document.getElementById('chatMessages').innerHTML = `<div class="bubble bubble-ai">🧹 Chat promazán. Paměť na 20 reportů z GitHubu zůstává aktivní.</div>`;
             }
         }
 
+        // --- NAČÍTÁNÍ ČASU POSLEDNÍ SYNCHRONIZACE ---
+        async function fetchLastSyncTime() {
+            const syncEl = document.getElementById('syncTime');
+            const token = getSafeLocal('garmin_app_token');
+            if (!token) { syncEl.innerText = "Nenastaveno (⚙️)"; return; }
+            
+            try {
+                // Pokusíme se načíst soubor s časem synchronizace, který vytváří Python skript
+                const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/posledni_sync.json`, {
+                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3.raw' },
+                    cache: 'no-store'
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    syncEl.innerText = `${data.datum} v ${data.cas}`;
+                    syncEl.style.color = "#34d399";
+                } else {
+                    syncEl.innerText = "Nenalezeno (Spusť report)";
+                }
+            } catch(e) {
+                syncEl.innerText = "Chyba spojení";
+            }
+        }
+
+        // --- NASTAVENÍ KLÍČŮ ---
         function openSettingsModal() {
             document.getElementById('inpGithub').value = getSafeLocal('garmin_app_token') || '';
             document.getElementById('inpGemini').value = getSafeLocal('garmin_gemini_token') || '';
@@ -283,27 +321,7 @@
             setTimeout(fetchLastSyncTime, 300);
         }
 
-        async function fetchLastSyncTime() {
-            const syncEl = document.getElementById('syncTime');
-            const token = getSafeLocal('garmin_app_token');
-            if (!token) { syncEl.innerText = "Nenastaveno (⚙️)"; return; }
-            syncEl.innerText = "Zjišťuji čas...";
-            try {
-                const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?path=historie_planu.json&page=1&per_page=1`, {
-                    headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github.v3.json' },
-                    cache: 'no-store'
-                });
-                if (res.ok) {
-                    const commits = await res.json();
-                    if (commits && commits.length > 0) {
-                        const commitDate = new Date(commits[0].commit.committer.date);
-                        syncEl.innerText = `${commitDate.getDate().toString().padStart(2, '0')}.${(commitDate.getMonth() + 1).toString().padStart(2, '0')}. v ${commitDate.getHours().toString().padStart(2, '0')}:${commitDate.getMinutes().toString().padStart(2, '0')}`;
-                        syncEl.style.color = "#34d399"; 
-                    } else syncEl.innerText = "Zatím bez dat";
-                } else syncEl.innerText = `Chyba HTTP ${res.status}`;
-            } catch(e) { syncEl.innerText = "Chyba sítě"; }
-        }
-
+        // --- ZPRACOVÁNÍ FOTEK ---
         function updateUI() {
             const container = document.getElementById('thumbnailsContainer');
             container.innerHTML = ''; 
@@ -318,14 +336,14 @@
                 wrapper.prepend(img); container.appendChild(wrapper);
             });
             const pill = document.getElementById('photoPill');
-            if (base64ImagesArray.length > 0) { pill.classList.add('has-photo'); document.getElementById('fotoNazev').innerText = `${base64ImagesArray.length} fotek připraveno ✅`; }
-            else { pill.classList.remove('has-photo'); document.getElementById('fotoNazev').innerText = "Přidat Fotky / Video"; }
+            if (base64ImagesArray.length > 0) { pill.classList.add('has-photo'); document.getElementById('fotoNazev').innerText = `${base64ImagesArray.length} položek připraveno ✅`; }
+            else { pill.classList.remove('has-photo'); document.getElementById('fotoNazev').innerText = "Přidat fotky / video"; }
         }
 
         document.getElementById('fotoInput').addEventListener('change', async function(e) {
             const files = Array.from(e.target.files);
             if (files.length === 0) return;
-            for(let f of files) { if(f.type.startsWith('video/')) { alert("🎬 Video přes chat zatím zablokováno."); e.target.value = ''; return; } }
+            for(let f of files) { if(f.type.startsWith('video/')) { alert("🎬 Odesílání videí přímo z prohlížeče je dočasně zakázáno kvůli paměti. Nahraj prosím fotky."); e.target.value = ''; return; } }
             document.getElementById('fotoNazev').innerText = "Zpracovávám...";
             for (let file of files) {
                 await new Promise((resolve) => {
@@ -350,21 +368,24 @@
             e.target.value = ''; updateUI();
         });
 
+        // --- HLAVNÍ LOGIKA ODESÍLÁNÍ ---
         async function herniLogikaOdeslani(typ_akce) {
             const isChat = typ_akce === 'chat';
             const ghToken = getSafeLocal('garmin_app_token'), gemToken = getSafeLocal('garmin_gemini_token');
             if (!ghToken || (isChat && !gemToken)) { openSettingsModal(); return; }
             const text = textareaZprava.value;
-            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš zprávu."); return; }
+            if (isChat && !text && base64ImagesArray.length === 0) { alert("Napiš nejdřív zprávu nebo vlož fotku."); return; }
 
             const btnChat = document.getElementById('btnChat'), btnReport = document.getElementById('btnReport');
             const activeBtn = isChat ? btnChat : btnReport, originalHTML = activeBtn.innerHTML;
-            btnChat.disabled = btnReport.disabled = true; activeBtn.innerHTML = `<svg class="spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" opacity="0.25"></circle><path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4" fill="currentColor"></path></svg>`;
+            btnChat.disabled = btnReport.disabled = true; activeBtn.innerHTML = `<div class="spinner"></div>`;
 
-            if(isChat) appendMessage('user', text + (base64ImagesArray.length > 0 ? "<br><i>[Foto]</i>" : ""));
-            else appendMessage('user', `<i>[Požadavek na Velký Report]</i>`);
+            // Zobrazení odeslané zprávy v UI
+            if(isChat) appendMessage('user', text + (base64ImagesArray.length > 0 ? "<br><i>[Přiloženy fotky]</i>" : ""));
+            else appendMessage('user', `<i>[Požadavek na Velký Report s textem: ${text || "Bez doplňující zprávy"}]</i>`);
 
             if (!isChat) {
+                // --- VELKÝ REPORT (Přes GitHub Actions) ---
                 if (base64ImagesArray.length > 0) {
                     for (let i = 0; i < base64ImagesArray.length; i++) {
                         let fileName = i === 0 ? "fotka.jpg" : `fotka_${i}.jpg`, fileSha = null;
@@ -374,22 +395,41 @@
                     }
                 }
                 const dRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`, { method: 'POST', headers: { 'Authorization': `Bearer ${ghToken}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main', inputs: { zprava: text || "" } }) });
-                if (dRes.ok) appendMessage('ai', "🚀 Povel odeslán. Skript začal pracovat, za pár minut máš report v e-mailu!", "border-left: 4px solid #10b981;");
+                if (dRes.ok) appendMessage('ai', "🚀 Povel k Velkému Reportu byl odeslán. Skript pracuje, za pár minut máš PDF v e-mailu!", "border-left: 4px solid #10b981;");
             } else {
+                // --- ŽIVÝ CHATBOT (Přes Gemini API) ---
                 const denik = await fetchGitHubFile("denik.txt", ghToken);
                 let hData = await fetchGitHubFile("historie_planu.json", ghToken), pReporty = "";
                 try { 
-                    // ZMĚNA: Načítáme posledních 30 reportů místo 10
-                    pReporty = JSON.parse(hData).slice(0, 30).join("\n\n---\n\n"); 
+                    // ZMĚNA NA 20 REPORTŮ
+                    pReporty = JSON.parse(hData).slice(0, 20).join("\n\n---\n\n"); 
                 } catch(e) {}
                 
-                let promptText = `Jsi elitní osobní AI trenér a biohacker. Klient ti píše v chatu: "${text}". KONTEXT (Deník): ${denik}. POSLEDNÍCH 30 REPORTŮ (Pro hloubkovou analýzu trendů za poslední měsíc): ${pReporty}. ÚKOL: Odpověz bleskově, přátelsky a chirurgicky přesně (max 15 vět). Reaguj na aktuální stav i historii. Formátuj jako HTML (<p>, <b>, <ul>).`;
+                let promptText = `Jsi elitní osobní AI trenér a biohacker. Klient ti píše v chatu: "${text}". KONTEXT (Deník): ${denik}. POSLEDNÍCH 20 REPORTŮ (Pro analýzu trendů): ${pReporty}. ÚKOL: Odpověz bleskově, přátelsky a chirurgicky přesně (max 15 vět). Neřeš zbytečnosti. Formátuj jako čistý HTML kód (použij <p>, <b>, <ul>).`;
                 const payload = { contents: [{ parts: [{ text: promptText }] }] };
                 base64ImagesArray.forEach(b => payload.contents[0].parts.push({ inlineData: { mimeType: "image/jpeg", data: b } }));
                 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${gemToken}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                const aiOdpoved = (await response.json()).candidates[0].content.parts[0].text.replace(/```html/g, '').replace(/```/g, '').trim();
+                if(!response.ok) throw new Error("Google AI tě odmítlo. Zkontroluj klíč v nastavení.");
+                
+                const data = await response.json();
+                const aiOdpoved = data.candidates[0].content.parts[0].text.replace(/```html/g, '').replace(/```/g, '').trim();
                 appendMessage('ai', aiOdpoved);
+
+                // Uložení chatu na GitHub pro paměť příštího reportu
+                try {
+                    let chatSha = null, chatHistory = [];
+                    const chatRes = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { headers: { 'Authorization': `Bearer ${ghToken}` }, cache: 'no-store' });
+                    if (chatRes.ok) {
+                        const chatJson = await chatRes.json();
+                        chatSha = chatJson.sha;
+                        chatHistory = JSON.parse(decodeURIComponent(escape(atob(chatJson.content))));
+                    }
+                    chatHistory.push({ "uživatel": text || "[Foto]", "ai": aiOdpoved });
+                    if (chatHistory.length > 5) chatHistory = chatHistory.slice(-5);
+                    const putBody = { message: "Uložení chatu", content: btoa(unescape(encodeURIComponent(JSON.stringify(chatHistory, null, 2)))), sha: chatSha };
+                    fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/chat_log.json`, { method: 'PUT', headers: { 'Authorization': `Bearer ${ghToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(putBody) });
+                } catch(err) {}
             }
 
             textareaZprava.value = ''; setSafeLocal('garmin_draft_msg', ''); base64ImagesArray = []; updateUI();
@@ -401,10 +441,11 @@
             return res.ok ? await res.text() : "";
         }
 
-        async function bezpecneOdeslat(t) { try { await herniLogikaOdeslani(t); } catch (e) { alert("Chyba: " + e.message); } }
+        async function bezpecneOdeslat(t) { try { await herniLogikaOdeslani(t); } catch (e) { alert("Chyba: " + e.message); const bC = document.getElementById('btnChat'), bR = document.getElementById('btnReport'); bC.disabled = bR.disabled = false; bC.innerHTML = "💬 Živý Chat"; bR.innerHTML = "🚀 Velký Report"; } }
 
         window.onload = () => { loadDraftMessage(); loadChatHistory(); setTimeout(fetchLastSyncTime, 400); };
     </script>
 </body>
 </html>
+
 
