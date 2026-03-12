@@ -338,11 +338,12 @@
                         img.src = event.target.result;
                         img.onload = () => {
                             const canvas = document.createElement('canvas');
-                            const MAX_WIDTH = 800; const scaleSize = MAX_WIDTH / img.width;
+                            // AI stačí 512px a 50% kvalita. Tím srazíme datovou velikost na absolutní minimum (~30 KB)!
+                            const MAX_WIDTH = 512; const scaleSize = MAX_WIDTH / img.width;
                             canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
                             const ctx = canvas.getContext('2d');
                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                            base64ImagesArray.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+                            base64ImagesArray.push(canvas.toDataURL('image/jpeg', 0.5).split(',')[1]);
                             resolve();
                         }
                     };
